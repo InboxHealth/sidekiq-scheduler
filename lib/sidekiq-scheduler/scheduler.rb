@@ -260,7 +260,7 @@ module SidekiqScheduler
       return next_scheduled_time if last_run_at  >= now
       return next_scheduled_time if last_run_at  >= prev_scheduled_time
       return next_scheduled_time if grace_period <  now
-      return now
+      return Time.now.beginning_of_minute.to_i
     end
 
     def unschedule_job(name)
