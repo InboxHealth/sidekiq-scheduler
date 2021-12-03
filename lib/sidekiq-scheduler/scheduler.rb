@@ -243,12 +243,24 @@ module SidekiqScheduler
       options.merge!(job: true, tags: [name])
 
       rufus_scheduler.send(interval_type, schedule, options) do |job, time|
-        idempotent_job_enqueue(name, safe_time(job, time), SidekiqScheduler::Utils.sanitize_job_config(config))
+        idempotent_job_enqueue(name, safe_time(job, time, name), SidekiqScheduler::Utils.sanitize_job_config(config))
       end
     end
 
-    def safe_time(job, time)
-      job.is_a?(Rufus::Scheduler::CronJob) ? job.next_time.to_local_time.beginning_of_minute : time
+    def safe_time(job, time, name)
+      return time unless job.is_a?(Rufus::Scheduler::CronJob)
+      now                 = Time.now.to_i
+      last_run_at         = job_last_runtime(name)
+      prev_scheduled_time = job.cron_line.previous_time.to_i
+      next_scheduled_time = job.next_time.to_i
+      interval            = next_scheduled_time - prev_scheduled_time
+      grace_period        = prev_scheduled_time + interval.*(0.2).round
+
+      return next_scheduled_time if last_run_at  == 0
+      return next_scheduled_time if last_run_at  >= now
+      return next_scheduled_time if last_run_at  >= prev_scheduled_time
+      return next_scheduled_time if grace_period <  now
+      return now
     end
 
     def unschedule_job(name)
