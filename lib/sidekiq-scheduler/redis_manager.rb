@@ -1,7 +1,7 @@
 module SidekiqScheduler
   module RedisManager
 
-    REGISTERED_JOBS_THRESHOLD_IN_SECONDS = 24 * 60 * 60
+    REGISTERED_JOBS_THRESHOLD_IN_SECONDS = 3.months.to_i
 
     # Returns the schedule of a given job
     #
@@ -154,6 +154,16 @@ module SidekiqScheduler
 
       Sidekiq.redis do |r|
         r.zremrangebyscore(pushed_job_key(job_name), 0, seconds_ago)
+      end
+    end
+
+    # Returns last recorded run time of the job
+    #
+    # @param [String] job_name The name of the job
+    # @return [Integer] epoch time of last run of the job
+    def self.job_last_runtime(job_name)
+      Sidekiq.redis do |r|
+        r.zrevrangebyscore(pushed_job_key(job_name), '+inf', 0, limit: [0, 1]).first.to_i
       end
     end
 
