@@ -250,7 +250,7 @@ module SidekiqScheduler
     def safe_time(job, time, name)
       return time unless job.is_a?(Rufus::Scheduler::CronJob)
       now                 = Time.now.to_i
-      last_run_at         = job_last_runtime(name)
+      last_run_at         = SidekiqScheduler::RedisManager.job_last_runtime(name)
       prev_scheduled_time = job.cron_line.previous_time.to_local_time.beginning_of_minute.to_i
       next_scheduled_time = job.next_time.to_local_time.beginning_of_minute.to_i
       interval            = next_scheduled_time - prev_scheduled_time
