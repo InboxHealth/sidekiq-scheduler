@@ -239,11 +239,10 @@ module SidekiqScheduler
     private
 
     def new_job(name, interval_type, config, schedule, options)
-      return unless job_enabled?(name)
       options.merge!(job: true, tags: [name])
 
       rufus_scheduler.send(interval_type, schedule, options) do |job, time|
-        idempotent_job_enqueue(name, safe_time(job, time, name), SidekiqScheduler::Utils.sanitize_job_config(config))
+        idempotent_job_enqueue(name, safe_time(job, time, name), SidekiqScheduler::Utils.sanitize_job_config(config)) if job_enabled?(name)
       end
     end
 
