@@ -14,10 +14,29 @@
   border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
+.list-group-item-disabled {
+  background-color: #f3d3d3;
+}
+
 @media (prefers-color-scheme: dark) {
   .list-group-item {
     background-color: #222;
     color: white;
     border: 1px solid #555;
+  }
+}
+
+.toggle-all-buttons {
+  margin-top: 20px;
+  margin-bottom: 10px;
+  line-height: 45px;
+  text-align: right;
+}
+
+@media (max-width: 768px) {
+  .toggle-all-buttons {
+    margin-top: 0;
+    text-align: left;
+    line-height: inherit;
   }
 }

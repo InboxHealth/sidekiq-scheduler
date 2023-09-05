@@ -49,7 +49,7 @@ module SidekiqScheduler
     #
     # @return [Class] the class corresponding to the klass param
     def self.try_to_constantize(klass)
-      klass.is_a?(String) ? klass.constantize : klass
+      klass.is_a?(String) ? Object.const_get(klass) : klass
     rescue NameError
       klass
     end
@@ -57,15 +57,28 @@ module SidekiqScheduler
     # Initializes active_job using the passed parameters.
     #
     # @param [Class] klass The class to initialize
-    # @param [Array/Hash] the parameters passed to the klass initializer
+    # @param [Array, Hash] args The parameters passed to the klass initializer
     #
     # @return [Object] instance of the class klass
-    def self.initialize_active_job(klass, args)
+    def self.initialize_active_job(klass, args, keyword_argument = false)
       if args.is_a?(Array)
         klass.new(*args)
+      elsif args.is_a?(Hash) && keyword_argument
+        klass.new(**symbolize_keys(args))
       else
         klass.new(args)
       end
+    end
+
+    # Returns true if the enqueuing needs to be done for an ActiveJob
+    #  class false otherwise.
+    #
+    # @param [Class] klass the class to check is decendant from ActiveJob
+    #
+    # @return [Boolean]
+    def self.active_job_enqueue?(klass)
+      klass.is_a?(Class) && defined?(ActiveJob::Enqueuing) &&
+        klass.included_modules.include?(ActiveJob::Enqueuing)
     end
 
     # Enqueues the job using the Sidekiq client.
@@ -83,7 +96,7 @@ module SidekiqScheduler
         queue: config['queue']
       }.keep_if { |_, v| !v.nil? }
 
-      initialize_active_job(config['class'], config['args']).enqueue(options)
+      initialize_active_job(config['class'], config['args'], config['keyword_argument']).enqueue(options)
     end
 
     # Removes the hash values associated to the rufus metadata keys.
@@ -101,8 +114,10 @@ module SidekiqScheduler
     def self.new_rufus_scheduler(options = {})
       Rufus::Scheduler.new(options).tap do |scheduler|
         scheduler.define_singleton_method(:on_post_trigger) do |job, triggered_time|
-          SidekiqScheduler::Utils.update_job_last_time(job.tags[0], triggered_time)
-          SidekiqScheduler::Utils.update_job_next_time(job.tags[0], job.next_time)
+          if (job_name = job.tags[0])
+            SidekiqScheduler::Utils.update_job_last_time(job_name, triggered_time)
+            SidekiqScheduler::Utils.update_job_next_time(job_name, job.next_time)
+          end
         end
       end
     end

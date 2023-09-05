@@ -1,8 +1,8 @@
 # sidekiq-scheduler
 
 <p align="center">
-  <a href="http://moove-it.github.io/sidekiq-scheduler/">
-    <img src="https://moove-it.github.io/sidekiq-scheduler/images/small-logo.svg" width="468px" height="200px" alt="Sidekiq Scheduler" />
+  <a href="http://sidekiq-scheduler.github.io/sidekiq-scheduler/">
+    <img src="https://sidekiq-scheduler.github.io/sidekiq-scheduler/images/small-logo.svg" width="468px" height="200px" alt="Sidekiq Scheduler" />
   </a>
 </p>
 
@@ -10,19 +10,7 @@
   <a href="https://badge.fury.io/rb/sidekiq-scheduler">
     <img src="https://badge.fury.io/rb/sidekiq-scheduler.svg" alt="Gem Version">
   </a>
-  <a href="https://codeclimate.com/github/moove-it/sidekiq-scheduler">
-    <img src="https://codeclimate.com/github/moove-it/sidekiq-scheduler/badges/gpa.svg" alt="Code Climate">
-  </a>
-  <a href="https://travis-ci.org/moove-it/sidekiq-scheduler">
-    <img src="https://api.travis-ci.org/moove-it/sidekiq-scheduler.svg?branch=master" alt="Build Status">
-  </a>
-  <a href="https://coveralls.io/github/moove-it/sidekiq-scheduler?branch=master">
-    <img src="https://coveralls.io/repos/moove-it/sidekiq-scheduler/badge.svg?branch=master&service=github" alt="Coverage Status">
-  </a>
-  <a href="https://inch-ci.org/github/moove-it/sidekiq-scheduler">
-    <img src="https://inch-ci.org/github/moove-it/sidekiq-scheduler.svg?branch=master" alt="Documentation Coverage">
-  </a>
-  <a href="http://www.rubydoc.info/github/moove-it/sidekiq-scheduler">
+  <a href="http://www.rubydoc.info/github/sidekiq-scheduler/sidekiq-scheduler">
     <img src="https://img.shields.io/badge/yard-docs-blue.svg" alt="Documentation">
   </a>
 </p>
@@ -30,7 +18,7 @@
 `sidekiq-scheduler` is an extension to [Sidekiq](http://github.com/mperham/sidekiq) that
 pushes jobs in a scheduled way, mimicking cron utility.
 
-__Note:__ If you are looking for version 2.2.*, go to [2.2-stable branch](https://github.com/moove-it/sidekiq-scheduler/tree/2.2-stable).
+__Note:__ Current branch contains work of the v5 release, if you are looking for version 2.2.\*, 3.\*, or 4.\*, go to [2.2-stable branch](https://github.com/sidekiq-scheduler/sidekiq-scheduler/tree/2.2-stable) / [v3-stable](https://github.com/sidekiq-scheduler/sidekiq-scheduler/tree/v3-stable) / [v4-stable](https://github.com/sidekiq-scheduler/sidekiq-scheduler/tree/v4-stable).
 
 ## Installation
 
@@ -60,10 +48,11 @@ end
 ``` yaml
 # config/sidekiq.yml
 
-:schedule:
-  hello_world:
-    cron: '0 * * * * *'   # Runs once per minute
-    class: HelloWorld
+:scheduler:
+  :schedule:
+    hello_world:
+      cron: '0 * * * * *'   # Runs once per minute
+      class: HelloWorld
 ```
 
 Run sidekiq:
@@ -95,39 +84,60 @@ Configuration options are placed inside `sidekiq.yml` config file.
 Available options are:
 
 ``` yaml
-:dynamic: <if true the schedule can be modified in runtime [false by default]>
-:dynamic_every: <if dynamic is true, the schedule is reloaded every interval [5s by default]>
-:enabled: <enables scheduler if true [true by default]>
 :scheduler:
+  :dynamic: <if true the schedule can be modified in runtime [false by default]>
+  :dynamic_every: <if dynamic is true, the schedule is reloaded every interval [5s by default]>
+  :enabled: <enables scheduler if true [true by default]>
   :listened_queues_only: <push jobs whose queue is being listened by sidekiq [false by default]>
+  :rufus_scheduler_options: <Set custom options for rufus scheduler, like max_work_threads [{} by default]>
 ```
 
 ## Schedule configuration
 
-The schedule is configured through the `:schedule` config entry in the sidekiq config file:
+The schedule is configured through the `:scheduler:` -> `:schedule` config entry in the sidekiq config file:
 
 ``` yaml
-:schedule:
-  CancelAbandonedOrders:
-    cron: '0 */5 * * * *'   # Runs when second = 0, every 5 minutes
+:scheduler:
+  :schedule:
+    CancelAbandonedOrders:
+      cron: '0 */5 * * * *'   # Runs when second = 0, every 5 minutes
 
-  queue_documents_for_indexing:
-    cron: '0 0 * * * *'   # Runs every hour
+    queue_documents_for_indexing:
+      cron: '0 0 * * * *'   # Runs every hour
 
-    # By default the job name will be taken as worker class name.
-    # If you want to have a different job name and class name, provide the 'class' option
-    class: QueueDocuments
+      # By default the job name will be taken as worker class name.
+      # If you want to have a different job name and class name, provide the 'class' option
+      class: QueueDocuments
 
-    queue: slow
-    args: ['*.pdf']
-    description: "This job queues pdf content for indexing in solr"
+      queue: slow
+      args: ['*.pdf']
+      description: "This job queues pdf content for indexing in solr"
 
-    # Enable the `metadata` argument which will pass a Hash containing the schedule metadata
-    # as the last argument of the `perform` method. `false` by default.
-    include_metadata: true
+      # Enable the `metadata` argument which will pass a Hash containing the schedule metadata
+      # as the last argument of the `perform` method. `false` by default.
+      include_metadata: true
 
-    # Enable / disable a job. All jobs are enabled by default.
-    enabled: true
+      # Enable / disable a job. All jobs are enabled by default.
+      enabled: true
+
+      # Deconstructs a hash defined as the `args` to keyword arguments. 
+      #
+      # `flase` by default.
+      # 
+      # Example
+      # 
+      # my_job:
+      #   cron: '0 0 * * * *'
+      #   class: MyJob
+      #   args: { foo: 'bar', hello: 'world' } 
+      #   keyword_argument: true
+      #
+      # class MyJob < ActiveJob::Base
+      #   def perform(foo:, hello:)
+      #     # ...
+      #   end
+      # end
+      keyword_argument: true 
 ```
 
 ### Schedule metadata
@@ -168,9 +178,10 @@ Cron, every, and interval types push jobs into sidekiq in a recurrent manner.
 `cron` follows the same pattern as cron utility, with seconds resolution.
 
 ``` yaml
-:schedule:
-  HelloWorld:
-    cron: '0 * * * * *' # Runs when second = 0
+:scheduler:
+  :schedule:
+    HelloWorld:
+      cron: '0 * * * * *' # Runs when second = 0
 ```
 
 `every` triggers following a given frequency:
@@ -261,7 +272,8 @@ When `:dynamic` flag is set to `true`, schedule changes are loaded every 5 secon
 
 ``` yaml
 # config/sidekiq.yml
-:dynamic: true
+:scheduler:
+  :dynamic: true
 ```
 
 If `:dynamic` flag is set to `false`, you'll have to reload the schedule manually in sidekiq
@@ -304,10 +316,17 @@ If you're configuring your own Redis connection pool, you need to make sure the 
 
 That's a minimum of `concurrency` + 5 (per the [Sidekiq wiki](https://github.com/mperham/sidekiq/wiki/Using-Redis#complete-control)) + `Rufus::Scheduler::MAX_WORK_THREADS` (28 as of this writing; per the [Rufus README](https://github.com/jmettraux/rufus-scheduler#max_work_threads)), for a total of 58 with the default `concurrency` of 25.
 
-You can also override the thread pool size in Rufus Scheduler by setting e.g.:
+You can also override the thread pool size in Rufus Scheduler by setting the following in your `sidekiq.yml` config:
 
-```
-SidekiqScheduler::Scheduler.instance.rufus_scheduler_options = { max_work_threads: 5 }
+```yaml
+---
+...
+
+:scheduler:
+  rufus_scheduler_options:
+    max_work_threads: 5
+
+...
 ```
 
 ## Notes about running on Multiple Hosts
@@ -321,7 +340,48 @@ Non-normal conditions that could push a specific job multiple times are:
 
 `every`, `interval` and `in` jobs will be pushed once per host.
 
-## Notes on when sidekiq worker is down
+### Suggested setup for Multiple Hosts using Heroku and Rails
+
+Configuration options `every`, `interval` and `in` will push once per host. This may be undesirable. One way to achieve single jobs per the schedule would be to manually designate a host as the scheduler. The goal is to have a single scheduler process running across all your hosts. 
+
+This can be achieved by using an environment variable and controlling the number of dynos. In Rails, you can read this variable during initialization and then conditionally load your config file.
+
+Suppose we are using Rails and have the following schedule:
+
+```yaml
+# config/scheduler.yml
+MyRegularJob:
+  description: "We want this job to run very often, but we do not want to run more of them as we scale"
+  interval: ["1m"]
+  queue: default
+```
+
+Then we can conditionally load it via an initializer:
+
+```ruby
+# config/initializer/sidekiq.rb
+if ENV.fetch("IS_SCHEDULER", false)
+  Sidekiq.configure_server do |config|
+    config.on(:startup) do
+      Sidekiq.schedule = YAML.load_file(File.expand_path("../scheduler.yml", File.dirname(__FILE__)))
+      Sidekiq::Scheduler.reload_schedule!
+    end
+  end
+end
+```
+
+Then you would just need to flag the scheduler process when you start it. If you are using a Procfile, it would look like this:
+
+```yaml
+# Procfile
+web: bin/rails server
+worker: bundle exec sidekiq -q default
+scheduler: IS_SCHEDULER=true bundle exec sidekiq -q default
+```
+
+When running via Heroku, you set your `scheduler` process to have 1 dyno. This will ensure you have at most 1 worker loading the schedule. 
+
+## Notes on when Sidekiq worker is down
 
 For a `cron`/`at` (and all other) job to be successfully enqueued, you need at least one sidekiq worker with scheduler to be up at that moment. Handling this is up to you and depends on your application.
 
@@ -333,6 +393,72 @@ Possible solutions include:
 - Running scheduler inside your unicorn/rails processes (if you already have zero downtime deploy set up for these)
 
 Each option has it's own pros and cons. 
+
+## Notes when running multiple Sidekiq processors on the same Redis
+
+### TL;DR
+
+Be **sure** to include the `:enabled: false` top-level key on any additional
+configurations to avoid any possibility of the `schedules` definition being
+wiped by the second Sidekiq process.
+
+To illustrate what we mean:
+
+Say you have one process with the schedule:
+```yaml
+# e.g., config/sidekiq.yml
+
+:queues:
+  - default
+:scheduler:
+  :schedule:
+    do_something_every_minute:
+      class: DoSomethingJob
+      args: matey
+      queue: :scheduler
+      cron: '0 * * * * * America/Los_Angeles'
+```
+
+And a separate separate configured process without one:
+```yaml
+# e.g., config/sidekiq_other.yml
+:queues:
+  - scheduler
+
+## NOTE Disable the Scheduler
+:scheduler:
+  :enabled: false
+```
+
+### Details
+
+This gem stores the configured schedule in Redis on boot. It's used, primarily,
+to display in the Web Integration, and allow you to interact with that schedule
+via that integration.
+
+If you're running multiple Sidekiq processes on the same Redis namespace with
+different configurations, **you'll want to explicitly _disable_ Sidekiq
+Scheduler** for the other processes not responsible for the schedule. If you
+don't, the last booted Sidekiq processes' schedule will be what is stored in
+Redis.
+
+See https://github.com/sidekiq-scheduler/sidekiq-scheduler/issues/361 for a more details.
+
+## Notes when running multiple applications in the same Redis database
+
+_NOTE_: **Although we support this option, we recommend having separate redis databases for each application. Choosing this option is at your own risk.**
+
+If you need to run multiple applications with differing schedules, the easiest way is to use a different Redis database per application. Doing that will ensure that each application will have its own schedule, web interface and statistics.
+
+However, you may want to have a set of related applications share the same Redis database in order to aggregate statistics and manage them all in a single web interface. To do this while maintaining a different schedule for each application, you can configure each application to use a different `key_prefix` in Redis. This prevents the applications overwriting each others' schedules and schedule data.
+
+```ruby
+Rails.application.reloader.to_prepare do
+  SidekiqScheduler::RedisManager.key_prefix = "my-app"
+end
+```
+
+Note that this must be set before the schedule is loaded (or it will go into the wrong key). If you are using the web integration, make sure that the prefix is set in the web process so that you see the correct schedule.
 
 ## Sidekiq Web Integration
 
@@ -347,7 +473,7 @@ require 'sidekiq-scheduler/web'
 run Sidekiq::Web
 ```
 
-![Sidekiq Web Integration](https://github.com/moove-it/sidekiq-scheduler/raw/master/images/recurring-jobs-ui-tab.png)
+![Sidekiq Web Integration](https://github.com/sidekiq-scheduler/sidekiq-scheduler/raw/master/images/recurring-jobs-ui-tab.png)
 
 ## ActiveJob integration
 
@@ -371,7 +497,7 @@ To see your updated schedule, be sure to reload Spring by stopping it prior to b
 
 Run `spring stop` to stop Spring.
 
-For more information, see [this issue](https://github.com/Moove-it/sidekiq-scheduler/issues/35#issuecomment-48067183) and [Spring's README](https://github.com/rails/spring/blob/master/README.md).
+For more information, see [this issue](https://github.com/sidekiq-scheduler/sidekiq-scheduler/issues/35#issuecomment-48067183) and [Spring's README](https://github.com/rails/spring/blob/master/README.md).
 
 
 ## Manage tasks from Unicorn/Rails server
@@ -408,6 +534,7 @@ MIT License
 
 ## Copyright
 
-Copyright 2013 - 2018 Moove-IT.
-Copyright 2012 Morton Jonuschat.
-Some parts copyright 2010 Ben VandenBos.
+- Copyright 2021 - 2023 Marcelo Lauxen.
+- Copyright 2013 - 2022 Moove-IT.
+- Copyright 2012 Morton Jonuschat.
+- Some parts copyright 2010 Ben VandenBos.

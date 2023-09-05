@@ -3,7 +3,7 @@ require 'sidekiq-scheduler'
 require_relative 'job_presenter'
 
 module SidekiqScheduler
-  # Hook into *Sidekiq::Web* Sinatra app which adds a new '/recurring-jobs' page
+  # Hook into *Sidekiq::Web* app which adds a new '/recurring-jobs' page
 
   module Web
     VIEW_PATH = File.expand_path('../../../web/views', __FILE__)
@@ -25,6 +25,11 @@ module SidekiqScheduler
         Sidekiq.reload_schedule!
 
         SidekiqScheduler::Scheduler.instance.toggle_job_enabled(params[:name])
+        redirect "#{root_path}recurring-jobs"
+      end
+
+      app.post '/recurring-jobs/toggle-all' do
+        SidekiqScheduler::Scheduler.instance.toggle_all_jobs(params[:action] == 'enable')
         redirect "#{root_path}recurring-jobs"
       end
     end
