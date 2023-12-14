@@ -156,7 +156,7 @@ module SidekiqScheduler
     # @return [Integer] epoch time of last run of the job
     def self.job_last_runtime(job_name)
       Sidekiq.redis do |r|
-        r.zrevrangebyscore(pushed_job_key(job_name), "(#{Time.now.to_i}", 0, limit: [0, 1]).first.to_i
+        r.zrange(pushed_job_key(job_name), "(#{Time.now.to_i}", 0, 'BYSCORE', 'REV', 'LIMIT', 0, 1).first.to_i
       end
     end
 
